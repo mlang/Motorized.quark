@@ -1,6 +1,6 @@
 MOTOR {
 	classvar <ccMap, <instances, <>midiChannel=1, <>midiOut;
-	var <type, <num, <midiController, <midiValue, <spec, <>func, <value, handle;
+	var <type, <num, <midiController, single, <midiValue, <spec, <>func, <value, handle;
 	*initClass {
 		instances = MultiLevelIdentityDictionary.new;
 		ccMap = IdentityDictionary[
@@ -17,11 +17,11 @@ MOTOR {
 			\pad -> (66..73)
 		]
 	}
-	*new {| type=\fader, num=0, spec, function |
+	*new {| type=\fader, num=0, spec, function, single |
 		var instance = instances[type, num];
 		if (instance.isNil) {
 			instance = super.newCopyArgs(
-				type, num, ccMap[type][num]
+				type, num, ccMap[type][num], single
 			).spec_(spec ?? \midi).func_(function).init;
 			instances[type, num] = instance;
 		} {
@@ -37,7 +37,7 @@ MOTOR {
 		^this.new(\encoder, num, spec, function)
 	}
 	*transport {| name, function |
-		^this.new(\transport, name, \midi, function)
+		^this.new(\transport, name, \midi, function, single: true)
 	}
 	*backward {| function |
 		^this.transport(\backward, function)
@@ -60,11 +60,10 @@ MOTOR {
 	init {
 		handle = MIDIFunc.cc({|midiValue|
 			var newValue = spec.map(midiValue / 127.0);
-			if (newValue != value) {
+			if (single or: newValue != value) {
 				func.value(value = newValue, this)
 			}
-		}, midiController, midiChannel);
-		handle.permanent = true
+		}, midiController, midiChannel).permanent = true
 	}
 	set {|newValue|
 		if (newValue != value) {
@@ -99,7 +98,7 @@ MOTOR {
 	}
 	free {
 		handle.free;
-		instances.removeAt(type,num);
+		instances.removeAt(type, num);
 		super.free;
 	}
 }
