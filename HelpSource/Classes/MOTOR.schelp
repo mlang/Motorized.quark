@@ -1,0 +1,24 @@
+CLASS:: MOTOR
+summary:: MOTÖR49/61 USB MIDI Keyboard controller proxy
+
+DESCRIPTION::
+Nondescript.
+
+CLASSMETHODS::
+METHOD:: new
+
+Construct.
+
+METHOD:: fader
+
+Construct a fader instance.
+
+METHOD:: encoder
+
+Construct an encoder instance.
+
+METHOD:: transport
+
+Construct an instance for a transport button.
+
+
