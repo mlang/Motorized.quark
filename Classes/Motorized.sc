@@ -1,28 +1,56 @@
 MOTOR {
-	classvar <ccMap, <instances, <>midiChannel=1, <>midiOut;
-	var <type, <num, <midiController, single, <midiValue, <spec, <>func, <value, handle;
+	classvar <msgNumMap, <instances, <>midiOut;
+	var <type, <num, <msgNum, <chan, <msgType, <maxMsgNum, single, <midiValue, <spec, <>func, <value, handle;
+
 	*initClass {
 		instances = MultiLevelIdentityDictionary.new;
-		ccMap = IdentityDictionary[
-			\transport -> IdentityDictionary[
-				\backward -> 115,
-				\forward  -> 116,
-				\stop     -> 117,
-				\play     -> 118,
-				\loop     -> 120,
-				\record   -> 119
-			],
-			\fader -> ([53]++(21..52)),
-			\encoder -> (71..78),
-			\pad -> (66..73)
-		]
+		msgNumMap = (
+			button: (
+				backward: 115,
+				forward: 116,
+				stop: 117,
+				play: 118,
+				loop: 120,
+				record: 119
+			),
+			fader: (
+				master: 53
+			).putEach((1..32), (21..52)),
+			encoder: ().putEach((1..32), (71..102)),
+			pad: ().putEach((1..32), (66..97))
+		)
 	}
-	*new {| type=\fader, num=0, spec, function, single |
+	*new {| type=\fader, num=1, spec=\midi, function, single=false |
 		var instance = instances[type, num];
 		if (instance.isNil) {
 			instance = super.newCopyArgs(
-				type, num, ccMap[type][num], single
-			).spec_(spec ?? \midi).func_(function).init;
+				type,
+				num,
+				num ?? {
+					msgNumMap [
+						#[\padOn, \padOff].includes(type).if(\pad, type)
+					] [
+						num
+					]
+				},
+				#[
+					\fader, \encoder, \button, \padOn, \padOff
+				].includes(type).if(1, 0),
+				type.switch(
+					\fader, \control,
+					\encoder, \control,
+					\button, \control,
+					\padOn, \noteOn,
+					\padOff, \noteOff,
+					type
+				),
+				type.switch(
+					\padOn, 100,
+					\padOff, 100,
+					127
+				),
+				single
+			).spec_(spec).func_(function).init;
 			instances[type, num] = instance;
 		} {
 			if (spec.notNil) { instance.spec = spec };
@@ -30,56 +58,75 @@ MOTOR {
 		}
 		^instance
 	}
-	*fader {| num=0, spec, function |
-		^this.new(\fader, num, spec, function)
+	*fader {| name=\master, spec, function |
+		^this.new(\fader, name, spec, function)
 	}
-	*encoder {| num=0, spec, function |
-		^this.new(\encoder, num, spec, function)
+	*encoder {| name=1, spec, function |
+		^this.new(\encoder, name, spec, function)
 	}
-	*transport {| name, function |
-		^this.new(\transport, name, \midi, function, single: true)
+	*button {| name, function |
+		^this.new(\button, name, \midi, function, single: true)
 	}
 	*backward {| function |
-		^this.transport(\backward, function)
+		^this.button(\backward, function)
 	}
 	*forward {| function |
-		^this.transport(\forward, function)
+		^this.button(\forward, function)
 	}
 	*stop {| function |
-		^this.transport(\stop, function)
+		^this.button(\stop, function)
 	}
 	*play {| function |
-		^this.transport(\play, function)
+		^this.button(\play, function)
 	}
 	*loop {| function |
-		^this.transport(\loop, function)
+		^this.button(\loop, function)
 	}
 	*record {| function |
-		^this.transport(\record, function)
+		^this.button(\record, function)
+	}
+	*padOn {| num=1, spec=\midi, function |
+		^this.new(\padOn, num, spec, function, single: true)
+	}
+	*padOff {| num=1, spec=\midi, function |
+		^this.new(\padOff, num, spec, function, single: true)
+	}
+	*noteOn {| function |
+		^this.new(\noteOn, nil, \midi, function, single: true)
+	}
+	*noteOff {| function |
+		^this.new(\noteOff, nil, \midi, function, single: true)
 	}
 	init {
-		handle = MIDIFunc.cc({|midiValue|
-			var newValue = spec.map(midiValue / 127.0);
-			if (single or: newValue != value) {
-				func.value(value = newValue, this)
-			}
-		}, midiController, midiChannel).permanent = true
+		handle = MIDIFunc.new(
+			{
+				arg midiValue, midiNumber;
+				var newValue = spec.map(midiValue / maxMsgNum);
+				if (single or: { newValue != value }) {
+					func.value(value = newValue, midiNumber, this)
+				}
+			},
+			msgNum, chan, msgType
+		).permanent = true
 	}
 	set {|newValue|
 		if (newValue != value) {
 			this.value_(newValue);
-			func.value(newValue, this)
+			func.value(newValue, msgNum, this)
 		}
 	}
-	spec_ {|newSpec|
+	spec_ {| newSpec |
 		spec = newSpec.asSpec;
 		this.set(spec.default)
 	}
 	value_ {|newValue|
-		var ccValue;
-		ccValue = (spec.unmap(value = newValue) * 127).asInteger;
-		if (midiOut.notNil and: { ccValue != midiValue }) {
-			midiOut.control(midiChannel, midiController, ccValue)
+		var ccValue = (spec.unmap(value = newValue) * maxMsgNum).asInteger;
+		if (
+			{ msgType == \control }.value and:
+			midiOut.notNil and:
+			{ ccValue != midiValue }
+		) {
+			midiOut.control(chan, msgNum, ccValue)
 		};
 		midiValue = ccValue
 	}
@@ -94,7 +141,13 @@ MOTOR {
 		)
 	}
 	storeArgs {
-		^[type, num, Spec.specs.findKeyForValue(spec) ?? spec, func]
+		^[
+			type,
+			num,
+			Spec.specs.findKeyForValue(spec) ?? spec,
+			func,
+			single
+		]
 	}
 	free {
 		handle.free;
@@ -171,7 +224,14 @@ BCF2000 {
 			}
 		)
 	}
-	storeArgs { ^[type,num,Spec.specs.findKeyForValue(spec) ?? spec,func] }
+	storeArgs {
+		^[
+			type,
+			num,
+			Spec.specs.findKeyForValue(spec) ?? spec,
+			func
+		]
+	}
  	free {
 		routine.stop;
 		instances.removeAt(type,num);
