@@ -21,29 +21,33 @@ MOTOR {
 		)
 	}
 	*new {| type=\fader, num=1, spec=\midi, function, single=false |
-		var instance = instances[type, num];
+		var instance = instances[type, num ? \all];
 		if (instance.isNil) {
 			instance = super.newCopyArgs(
 				type,
 				num,
-				num ?? {
+				// msgNum
+				num !? {
 					msgNumMap [
 						#[\padOn, \padOff].includes(type).if(\pad, type)
 					] [
 						num
 					]
 				},
+				// chan
 				#[
 					\fader, \encoder, \button, \padOn, \padOff
 				].includes(type).if(1, 0),
-				type.switch(
-					\fader, \control,
-					\encoder, \control,
-					\button, \control,
-					\padOn, \noteOn,
-					\padOff, \noteOff,
-					type
+				// msgType
+				#[\fader, \encoder, \button].includes(type).if(
+					\control,
+					type.switch(
+						\padOn, \noteOn,
+						\padOff, \noteOff,
+						type
+					)
 				),
+				// maxMsgNum
 				type.switch(
 					\padOn, 100,
 					\padOff, 100,
@@ -51,17 +55,17 @@ MOTOR {
 				),
 				single
 			).spec_(spec).func_(function).init;
-			instances[type, num] = instance;
+			instances[type, num ? \all] = instance;
 		} {
 			if (spec.notNil) { instance.spec = spec };
 			if (function.notNil) { instance.func = function }
 		}
 		^instance
 	}
-	*fader {| name=\master, spec, function |
+	*fader {| name=\master, spec=\midi, function |
 		^this.new(\fader, name, spec, function)
 	}
-	*encoder {| name=1, spec, function |
+	*encoder {| name=1, spec=\midi, function |
 		^this.new(\encoder, name, spec, function)
 	}
 	*button {| name, function |
@@ -91,25 +95,22 @@ MOTOR {
 	*padOff {| num=1, spec=\midi, function |
 		^this.new(\padOff, num, spec, function, single: true)
 	}
-	*noteOn {| function |
-		^this.new(\noteOn, nil, \midi, function, single: true)
+	*noteOn {| spec=\midi, function |
+		^this.new(\noteOn, nil, spec, function, single: true)
 	}
 	*noteOff {| function |
 		^this.new(\noteOff, nil, \midi, function, single: true)
 	}
 	init {
-		handle = MIDIFunc.new(
-			{
-				arg midiValue, midiNumber;
-				var newValue = spec.map(midiValue / maxMsgNum);
-				if (single or: { newValue != value }) {
-					func.value(value = newValue, midiNumber, this)
-				}
-			},
-			msgNum, chan, msgType
-		).permanent = true
+		handle = MIDIFunc.new({
+			arg midiValue, midiNumber;
+			var newValue = spec.map(midiValue / maxMsgNum);
+			if (single or: { newValue != value }) {
+				func.value(value = newValue, midiNumber, this)
+			}
+		}, msgNum, chan, msgType).permanent = true
 	}
-	set {|newValue|
+	set {| newValue |
 		if (newValue != value) {
 			this.value_(newValue);
 			func.value(newValue, msgNum, this)
@@ -130,7 +131,7 @@ MOTOR {
 		};
 		midiValue = ccValue
 	}
-	connect {|key, argName|
+	connect {| key, argName |
 		key.class.switch(
 			NodeProxy, {
 				func = {|val| key.set(argName, val) }
@@ -151,7 +152,7 @@ MOTOR {
 	}
 	free {
 		handle.free;
-		instances.removeAt(type, num);
+		instances.removeAt(type, num ? \all);
 		super.free;
 	}
 }

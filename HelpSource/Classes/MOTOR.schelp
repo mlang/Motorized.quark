@@ -1,25 +1,110 @@
 CLASS:: MOTOR
-summary:: MOTÖR49/61 USB MIDI Keyboard controller proxy
-categories:: External Control>MIDI
+SUMMARY:: MOTÖR49/61 USB MIDI Keyboard controller proxy
+CATEGORIES:: External Control>MIDI
+RELATED:: Classes/MIDIOut
 
 DESCRIPTION::
-Nondescript.
+A class for working with a Behringer MOTÖR49/61 USB MIDI Keyboard controller.
+This device has 9 motorized faders (4 banks of 8 + 1), 4 banks of 8 encoders,
+4 banks of 8 drum pads and a keyboard.  The motorized faders respond
+to MIDI control messages.  With this class, you can easily bind functions
+to particular controls on the MOTÖR.
 
 CLASSMETHODS::
+
 METHOD:: new
 
-Construct.
+Construct or update an existing instance.
+
+ARGUMENT:: type
+The type of control
+
+ARGUMENT:: num
+The label of the control
+
+ARGUMENT:: spec
+A LINK::Classes/ControlSpec:: which is used to translate the actual MIDI value to a desired range
+
+ARGUMENT:: function
+A function to invoke when the control emits MIDI data.
+First argument will be the translated value, second argument the message number, and third argument is the instance from which the event originated
+
+ARGUMENT:: single
+If true, don't filter out events which result in the same value
+
+SUBSECTION:: Convenience methods
 
 METHOD:: fader
 
-Construct a fader instance.
+Construct or retrieve a fader instance.
+
+ARGUMENT:: name
+The symbol CODE::\master:: or a number between 1 and 32
 
 METHOD:: encoder
 
-Construct an encoder instance.
+Construct or retrieve an encoder instance.
 
-METHOD:: transport
+ARGUMENT:: name
+A number between 1 and 32
 
-Construct an instance for a transport button.
+METHOD:: button
 
+Construct or retrieve an instance for a transport button.
 
+ARGUMENT:: name
+One of the symbols CODE::\backward::, CODE::\forward::, CODE::\stop::, CODE::\play::, CODE::\loop:: or CODE::\record.
+
+METHOD:: backward
+
+Construct or retrieve an instance for the backward button.
+
+METHOD:: forward
+
+Construct or retrieve an instance for the forward button.
+
+METHOD:: stop
+
+Construct or retrieve an instance for the stop button.
+
+METHOD:: play
+
+Construct or retrieve an instance for the play button.
+
+METHOD:: loop
+
+Construct or retrieve an instance for the loop button.
+
+METHOD:: record
+
+Construct or retrieve an instance for the record button.
+
+METHOD:: padOn
+
+Construct or retrieve and instance of a drum pad.
+
+ARGUMENT:: name
+A number between 1 and 32
+
+METHOD:: padOff
+
+Construct or retireve an instance for when a drumpad is released
+
+METHOD:: noteOn
+
+Construct or retireve and instance of a keyboard TELETYPE::noteOn:: event
+
+ARGUMENT:: spec
+Specifies how to translate the velocity
+
+METHOD:: noteOff
+
+Construct or retrieve a keyboard TELETYPE::noteOff:: event.
+
+EXAMPLES::
+
+CODE::
+MIDIClient.init;
+MOTOR.midiOut = MIDIOut(0);
+MOTOR.fader(\master, \unipolar, {|v| v.postln});
+::
