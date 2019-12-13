@@ -1,5 +1,5 @@
 CLASS:: MOTOR
-SUMMARY:: MOTÖR49/61 USB MIDI Keyboard controller proxy
+SUMMARY:: Behringer MOTÖR49/61 USB MIDI Keyboard controller proxy
 CATEGORIES:: External Control>MIDI
 RELATED:: Classes/MIDIOut
 
@@ -8,7 +8,7 @@ A class for working with a Behringer MOTÖR49/61 USB MIDI Keyboard controller.
 This device has 9 motorized faders (4 banks of 8 + 1), 4 banks of 8 encoders,
 4 banks of 8 drum pads and a keyboard.  The motorized faders respond
 to MIDI control messages.  With this class, you can easily bind functions
-to particular controls on the MOTÖR.
+to particular controls on a MOTÖR.
 
 CLASSMETHODS::
 
