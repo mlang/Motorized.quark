@@ -44,6 +44,7 @@ MOTOR {
 			var maxMsgNum = switch(type,
 				\padOn, 100,
 				\padOff, 100,
+				\bend, 16383,
 				127
 			);
 			instance = super.newCopyArgs(
@@ -97,6 +98,9 @@ MOTOR {
 	*noteOff {| function |
 		^this.new(\noteOff, nil, nil, function, single: true)
 	}
+	*bend {| spec, function |
+		^this.new(\bend, nil, spec, function)
+	}
 	init {
 		handle = MIDIFunc.new({
 			arg midiValue, midiNumber;
@@ -132,6 +136,9 @@ MOTOR {
 	}
 	connect {| key, argName |
 		key.class.switch(
+			Group, {
+				func = {|val| key.set(argName, val) }
+			},
 			NodeProxy, {
 				func = {|val| key.set(argName, val) }
 			},

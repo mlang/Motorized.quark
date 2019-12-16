@@ -92,7 +92,7 @@ Construct or retireve an instance for when a drumpad is released
 
 METHOD:: noteOn
 
-Construct or retireve and instance of a keyboard TELETYPE::noteOn:: event
+Construct or retireve an instance of a keyboard TELETYPE::noteOn:: event
 
 ARGUMENT:: spec
 Specifies how to translate the velocity
