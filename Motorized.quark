@@ -1,0 +1,8 @@
+(
+  name: "Motorized",
+  summary: "Proxies for motorized fader boxes",
+  version: "0.1.0",
+  schelp: "Classes/MOTOR",
+  license: "GPL",
+  copyright: "Mario Lang 2019"
+)
