@@ -103,8 +103,59 @@ Construct or retrieve a keyboard TELETYPE::noteOff:: event.
 
 EXAMPLES::
 
+Initialise on a Linux system.
+
 CODE::
-MIDIClient.init;
-MOTOR.midiOut = MIDIOut(0);
-MOTOR.fader(\master, \unipolar, {|v| v.postln});
+MIDIClient.init(verbose: false);
+MIDIIn.connectAll;
+MIDIClient.destinations.detectIndex {|ep|
+	ep.device == "MOTÖR49 Keyboard" and: ep.name == "MOTÖR49 Keyboard MIDI 1"
+} !? {|index|
+	MOTOR.midiOut = MIDIOut(0).connect(index);
+	MOTOR.fader(\master, \db, s.volume = _).value = s.volume.volume;
+	MOTOR.stop({ thisProcess.stop });
+	MOTOR.play({ thisProcess.run });
+	MOTOR.record({ if(s.isRecording, { s.stopRecording }, { s.record }) });
+};
+::
+
+Basic keyboard.
+
+CODE::
+(
+~notes = Array.newClear(128);
+MOTOR.noteOn(\unipolar, {|amp, num|
+	~notes[num] = Synth(\default,
+		[\freq, num.midicps, \amp, amp]
+	)
+});
+MOTOR.noteOff({|vel, num| ~notes[num].set(\gate, 0) });
+)
+::
+
+Use the faders to "draw" sin, cos and tan functions.
+
+CODE::
+(
+var faders, resolution, offset, draw;
+faders = Array.fill(24, {|i| MOTOR.fader(i+1, \bipolar) });
+resolution = MOTOR.encoder(1, [8, 8+128, \lin, 1], {
+	offset.spec = [
+		0, resolution.value-8, \lin,
+		1, min(offset.value, resolution.value-8)
+	];
+	draw.value
+});
+draw = {
+	#[\sin, \cos, \tan].do{|f, i|
+		8.do {|j|
+			faders[(i*8)+j].value = (pi*2/(resolution.value-1)*(j+offset.value)).perform(f)
+		}
+	}
+};
+offset = MOTOR.encoder(2, [0, resolution.value-8, \lin, 1], {
+	draw.value
+});
+draw.value
+)
 ::
