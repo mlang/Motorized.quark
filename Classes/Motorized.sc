@@ -23,17 +23,20 @@ MOTOR {
 	*new {| type=\fader, num=1, spec, function, single=false |
 		var instance = instances[type, num ? \all];
 		if (instance.isNil) {
-			var msgNum = num !? {
-				msgNumMap [
-					#[\padOn, \padOff].includes(type).if(\pad, type)
-				] [
-					num
-				]
-			};
+			var msgNum = switch(type,
+				\modwheel, 1,
+				num !? {
+					msgNumMap [
+						#[\padOn, \padOff].includes(type).if(\pad, type)
+					] [
+						num
+					]
+				}
+			);
 			var chan = if(#[
 				\fader, \encoder, \button, \padOn, \padOff
 			].includes(type), 1, 0);
-			var msgType = if(#[\fader, \encoder, \button].includes(type),
+			var msgType = if(#[\fader, \encoder, \button, \modwheel].includes(type),
 				\control,
 				type.switch(
 					\padOn, \noteOn,
@@ -54,8 +57,8 @@ MOTOR {
 			).spec_(spec ?? \midi).func_(function).init;
 			instances[type, num ? \all] = instance;
 		} {
+			if (function.notNil) { instance.func = function };
 			if (spec.notNil) { instance.spec = spec };
-			if (function.notNil) { instance.func = function }
 		}
 		^instance
 	}
@@ -63,7 +66,7 @@ MOTOR {
 		^this.new(\fader, name, spec, function)
 	}
 	*encoder {| name=1, spec, function |
-		^this.new(\encoder, name, spec, function)
+		^this.new(\encoder, name.asInteger, spec, function)
 	}
 	*button {| name, function |
 		^this.new(\button, name, nil, function, single: true)
@@ -86,11 +89,11 @@ MOTOR {
 	*record {| function |
 		^this.button(\record, function)
 	}
-	*padOn {| num=1, spec, function |
-		^this.new(\padOn, num, spec, function, single: true)
+	*padOn {| name=1, spec, function |
+		^this.new(\padOn, name.asInteger, spec, function, single: true)
 	}
-	*padOff {| num=1, spec, function |
-		^this.new(\padOff, num, spec, function, single: true)
+	*padOff {| name=1, spec, function |
+		^this.new(\padOff, name.asInteger, spec, function, single: true)
 	}
 	*noteOn {| spec, function |
 		^this.new(\noteOn, nil, spec, function, single: true)
@@ -101,12 +104,17 @@ MOTOR {
 	*bend {| spec, function |
 		^this.new(\bend, nil, spec, function)
 	}
+	*modwheel {| spec, function |
+		^this.new(\modwheel, nil, spec, function)
+	}
 	init {
 		handle = MIDIFunc.new({
 			arg midiValue, midiNumber;
 			var newValue = spec.map(midiValue / maxMsgNum);
 			if (single or: { newValue != value }) {
-				func.value(value = newValue, midiNumber, this)
+				value = newValue;
+				this.changed(\value);
+				func.value(value, midiNumber, this)
 			}
 		}, msgNum, chan, msgType).permanent = true
 	}
@@ -121,10 +129,13 @@ MOTOR {
 	}
 	spec_ {| newSpec |
 		spec = newSpec.asSpec;
-		this.set(spec.default)
+		if (single.not, {
+			this.set(spec.default)
+		})
 	}
 	value_ {|newValue|
 		var ccValue = (spec.unmap(value = newValue) * maxMsgNum).asInteger;
+		this.changed(\value);
 		if (
 			{ msgType == \control }.value and:
 			midiOut.notNil and:
