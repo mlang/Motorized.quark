@@ -20,6 +20,12 @@ MOTOR {
 			pad: ().putEach((1..32), (66..97))
 		)
 	}
+	*isMIDIEndPoint {
+		^{|ep|
+			ep.device == "MOTÖR49 Keyboard" and:
+			ep.name == "MOTÖR49 Keyboard MIDI 1"
+		}
+	}
 	*new {| type=\fader, num=1, spec, function, single=false |
 		var instance = instances[type, num ? \all];
 		if (instance.isNil) {
