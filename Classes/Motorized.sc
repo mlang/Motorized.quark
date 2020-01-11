@@ -1,6 +1,8 @@
 MOTOR {
+	const <variants = #['MOTÖR49 Keyboard', 'MOTÖR61 Keyboard'];
 	classvar <msgNumMap, <instances, <>midiOut;
-	var <type, <msgNum, <chan, <msgType, <maxMsgNum, single, <midiValue, <spec, <>func, <value, handle;
+	var <type, <msgNum, <chan, <msgType,
+	    <maxMsgNum, single, <midiValue, <spec, <>func, <value, handle;
 
 	*initClass {
 		instances = MultiLevelIdentityDictionary.new;
@@ -12,37 +14,41 @@ MOTOR {
 		msgNumMap[\button, \loop] = 120;
 		msgNumMap[\button, \record] = 119;
 		msgNumMap[\fader, \master] = 53;
-		32.do {|i|
-			msgNumMap[\fader, i+1] = 21+i;
-			msgNumMap[\encoder, i+1] = 71+i;
-			msgNumMap[\padOn, i+1] = 66+i;
-			msgNumMap[\padOff, i+1] = 66+i;
+		32.do {| i |
+			var name = i+1;
+			msgNumMap[\fader, name] = 21+i;
+			msgNumMap[\encoder, name] = 71+i;
+			msgNumMap[\padOn, name] = 66+i;
+			msgNumMap[\padOff, name] = 66+i;
 		};
 		msgNumMap[\modwheel] = 1;
 	}
 	*isMIDIEndPoint {
 		^{| ep |
-			ep.device == "MOTÖR49 Keyboard" and:
-			ep.name == "MOTÖR49 Keyboard MIDI 1"
+			variants.includes(ep.device.asSymbol) and:
+			ep.name == (ep.device ++ " MIDI 1")
 		}
 	}
 	*new {| type=#[\fader, \master], spec, action, single=false |
-		var instance = instances.atPath(type);
+		var instance;
 		type = type.asArray;
+		instance = instances.atPath(type);
 		if (instance.isNil) {
 			var msgNum = msgNumMap.atPath(type);
+			var t0 = type[0];
 			var chan = if(#[
 				\fader, \encoder, \button, \padOn, \padOff
-			].includes(type[0]), 1, 0);
-			var msgType = if(#[\fader, \encoder, \button, \modwheel].includes(type[0]),
-				\control,
-				type[0].switch(
+			].includes(t0), 1, 0);
+			var msgType = if(#[
+				\fader, \encoder, \button, \modwheel
+			].includes(t0), \control) {
+				t0.switch(
 					\padOn, \noteOn,
 					\padOff, \noteOff,
-					type[0]
+					t0
 				)
-			);
-			var maxMsgNum = switch(type[0],
+			};
+			var maxMsgNum = switch(t0,
 				\padOn, 100,
 				\padOff, 100,
 				\bend, 16383,
@@ -50,7 +56,7 @@ MOTOR {
 			);
 			instance = super.newCopyArgs(
 				type, msgNum, chan, msgType, maxMsgNum, single
-			).spec_(spec ?? \midi).func_(action).init;
+			).spec_(spec ? \midi).func_(action).init;
 			instances.putAtPath(type, instance);
 		} {
 			if (action.notNil) { instance.func = action };
@@ -64,23 +70,32 @@ MOTOR {
 	*encoder {| name=1, spec, action |
 		^this.new([encoder: name.asInteger], spec, action)
 	}
+
+	// Transport control
+	///////////////////////////////////////////////////////////////////////////
 	*button {| name, action |
-		^this.new([button: name], nil, action, single: true)
+		^this.new([button: name.asSymbol], nil, action, single: true)
 	}
-	*backward {| action | ^this.button(\backward, action) }
-	*forward  {| action | ^this.button(\forward, action) }
-	*stop     {| action | ^this.button(\stop, action) }
-	*play     {| action | ^this.button(\play, action) }
-	*loop     {| action | ^this.button(\loop, action) }
-	*record   {| action | ^this.button(\record, action) }
+	*backward {| action | ^this.button(thisMethod.name, action) }
+	*forward  {| action | ^this.button(thisMethod.name, action) }
+	*stop     {| action | ^this.button(thisMethod.name, action) }
+	*play     {| action | ^this.button(thisMethod.name, action) }
+	*loop     {| action | ^this.button(thisMethod.name, action) }
+	*record   {| action | ^this.button(thisMethod.name, action) }
+
+	// Pads
+	///////////////////////////////////////////////////////////////////////////
 	*padOn {| name=1, spec, function |
 		^this.new([padOn: name.asInteger], spec, function, single: true)
 	}
 	*padOff {| name=1, spec, function |
 		^this.new([padOff: name.asInteger], spec, function, single: true)
 	}
-	*noteOn {| spec, function |
-		^this.new(\noteOn, spec, function, single: true)
+
+	// Keyboard
+	///////////////////////////////////////////////////////////////////////////
+	*noteOn {| spec, action |
+		^this.new(\noteOn, spec, action, single: true)
 	}
 	*noteOff {| action |
 		^this.new(\noteOff, nil, action, single: true)
@@ -91,6 +106,7 @@ MOTOR {
 	*modwheel {| spec, action |
 		^this.new(\modwheel, spec, action)
 	}
+
 	init {
 		handle = MIDIFunc.new({
 			arg midiValue, midiNumber;
@@ -102,6 +118,7 @@ MOTOR {
 			}
 		}, msgNum, chan, msgType).permanent = true
 	}
+
 	disable { handle.disable }
 	enable { handle.enable }
 	
@@ -120,12 +137,13 @@ MOTOR {
 	value_ {|newValue|
 		var ccValue = (spec.unmap(value = newValue) * maxMsgNum).asInteger;
 		this.changed(\value);
-		if (
-			{ msgType == \control }.value and:
-			midiOut.notNil and:
-			{ ccValue != midiValue }
-		) {
-			midiOut.control(chan, msgNum, ccValue)
+		midiOut !? {| midiOut |
+			if (
+				{ msgType == \control }.value and:
+				{ ccValue != midiValue }
+			) {
+				midiOut.control(chan, msgNum, ccValue)
+			};
 		};
 		midiValue = ccValue
 	}

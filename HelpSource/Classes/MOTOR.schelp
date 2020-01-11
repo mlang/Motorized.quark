@@ -17,20 +17,17 @@ METHOD:: new
 Construct or update an existing instance.
 
 ARGUMENT:: type
-The type of control
-
-ARGUMENT:: num
-The label of the control
+The type of control.
 
 ARGUMENT:: spec
-A LINK::Classes/ControlSpec:: which is used to translate the actual MIDI value to a desired range
+A LINK::Classes/ControlSpec:: which is used to translate the actual MIDI value to a desired range.
 
-ARGUMENT:: function
+ARGUMENT:: action
 A function to invoke when the control emits MIDI data.
-First argument will be the translated value, second argument the message number, and third argument is the instance from which the event originated
+First argument will be the translated value, second argument the message number, and third argument is the instance from which the event originated.
 
 ARGUMENT:: single
-If true, don't filter out events which result in the same value
+If true, don't filter out events which result in the same value.
 
 SUBSECTION:: Convenience methods
 
@@ -39,14 +36,14 @@ METHOD:: fader
 Construct or retrieve a fader instance.
 
 ARGUMENT:: name
-The symbol CODE::\master:: or a number between 1 and 32
+The symbol CODE::\master:: or a number between CODE::1:: and CODE::32::.
 
 METHOD:: encoder
 
 Construct or retrieve an encoder instance.
 
 ARGUMENT:: name
-A number between 1 and 32
+A number between CODE::1:: and CODE::32::.
 
 METHOD:: button
 
@@ -84,7 +81,7 @@ METHOD:: padOn
 Construct or retrieve and instance of a drum pad.
 
 ARGUMENT:: name
-A number between 1 and 32
+A number between CODE::1:: and CODE::32::.
 
 METHOD:: padOff
 
@@ -95,7 +92,7 @@ METHOD:: noteOn
 Construct or retireve an instance of a keyboard TELETYPE::noteOn:: event
 
 ARGUMENT:: spec
-Specifies how to translate the velocity
+Specifies how to translate the velocity.
 
 METHOD:: noteOff
 
@@ -108,9 +105,7 @@ Initialise on a Linux system.
 CODE::
 MIDIClient.init(verbose: false);
 MIDIIn.connectAll;
-MIDIClient.destinations.detectIndex {|ep|
-	ep.device == "MOTÖR49 Keyboard" and: ep.name == "MOTÖR49 Keyboard MIDI 1"
-} !? {|index|
+MIDIClient.externalDestinations.detectIndex(MOTOR.isMIDIEndPoint) !? {|index|
 	MOTOR.midiOut = MIDIOut(0).connect(index);
 	MOTOR.fader(\master, \db, s.volume = _).value = s.volume.volume;
 	MOTOR.stop({ thisProcess.stop });
